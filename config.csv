@@ -1,0 +1,2 @@
+username,virtual_fs,initial_script
+ivan,filesystem.tar,start_script.sh
