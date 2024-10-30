@@ -9,50 +9,50 @@ import csv
 class ShellEmulator:
     def __init__(self, username, fs_path, init_script):
         self.username = username
-        self.cwd = "/tmp/virtual_fs"  # Установим начальную директорию
+        self.cwd = "/tmp/virtual_fs"  # Set initial directory
         self.fs_path = fs_path
         self.init_script = init_script
         self.check_or_create_filesystem()
         self.run_script(init_script)
 
     def check_or_create_filesystem(self):
-        """Проверяет существование файловой системы и создаёт её, если не существует."""
+        """Checks if the filesystem exists; creates it if not."""
         if not os.path.exists(self.fs_path):
-            print(f"Файловая система не найдена. Создание {self.fs_path}...")
+            print(f"File system not found. Creating {self.fs_path}...")
             self.create_filesystem()
         else:
             self.load_filesystem()
 
     def create_filesystem(self):
-        """Создаёт виртуальную файловую систему и сохраняет её в tar-файл."""
+        """Creates a virtual filesystem and saves it to a tar file."""
         os.makedirs("/tmp/virtual_fs/some_directory", exist_ok=True)
         os.makedirs("/tmp/virtual_fs/another_directory", exist_ok=True)
 
         with open("/tmp/virtual_fs/some_directory/some_file.txt", "w") as f:
-            f.write("Это тестовый файл.")
+            f.write("This is a test file.")
 
         with open("/tmp/virtual_fs/some_directory/another_file.txt", "w") as f:
-            f.write("Это еще один тестовый файл.")
+            f.write("This is another test file.")
 
         with open("/tmp/virtual_fs/another_directory/file_in_another_directory.txt", "w") as f:
-            f.write("Это файл в другой директории.")
+            f.write("This is a file in another directory.")
 
         with tarfile.open(self.fs_path, "w") as tar:
             tar.add("/tmp/virtual_fs", arcname="virtual_fs")
 
-        print(f"Файловая система успешно создана и сохранена в {self.fs_path}")
+        print(f"File system successfully created and saved to {self.fs_path}")
 
     def load_filesystem(self):
-        """Загружает виртуальную файловую систему из tar-файла."""
-        print(f"Загрузка файловой системы из {self.fs_path}")
+        """Loads the virtual filesystem from a tar file."""
+        print(f"Loading file system from {self.fs_path}")
         with tarfile.open(self.fs_path, "r") as tar:
             tar.extractall("/tmp")
-        print(f"Файловая система загружена из {self.fs_path}")
+        print(f"File system loaded from {self.fs_path}")
 
     def run_script(self, script_path):
-        """Запускает начальный скрипт."""
+        """Runs the initial script."""
         if not os.path.exists(script_path):
-            print(f"Стартовый скрипт {script_path} не найден. Пропуск выполнения.")
+            print(f"Initial script {script_path} not found. Skipping execution.")
             return
 
         with open(script_path, 'r') as f:
@@ -61,32 +61,55 @@ class ShellEmulator:
             command = command.strip()
             if command.startswith("#") or not command:
                 continue
-            print(f"Выполнение команды: {command}")
+            print(f"Executing command: {command}")
             self.run_command(command)
 
     def run_command(self, command):
-        """Выполняет команды."""
+        """Executes commands."""
         if command.startswith("ls"):
             return self.ls()
         elif command.startswith("cd"):
             return self.cd(command.split()[1])
+        elif command.startswith("find"):
+            return self.find(command.split()[1])
+        elif command.startswith("chown"):
+            parts = command.split()
+            return self.chown(parts[1], parts[2]) if len(parts) == 3 else "Error: 'chown' requires <owner> <path>"
         elif command.startswith("exit"):
             sys.exit()
         else:
-            return f"Команда {command} не поддерживается"
+            return f"Command '{command}' not supported in emulator."
 
     def ls(self):
-        """Реализация команды ls."""
+        """Implementation of the ls command."""
         return "\n".join(os.listdir(self.cwd))
 
     def cd(self, path):
-        """Реализация команды cd."""
+        """Implementation of the cd command."""
         new_path = os.path.join(self.cwd, path)
         if os.path.exists(new_path):
             self.cwd = new_path
-            return f"Перемещено в {self.cwd}"
+            return f"Changed directory to {self.cwd}"
         else:
-            return f"Путь {new_path} не найден"
+            return f"Path {new_path} not found"
+
+    def find(self, filename):
+        """Searches for a file within the current directory and subdirectories."""
+        matches = []
+        for root, dirs, files in os.walk(self.cwd):
+            if filename in files or filename in dirs:
+                matches.append(os.path.join(root, filename))
+        return "\n".join(matches) if matches else f"'{filename}' not found"
+
+    def chown(self, owner, path):
+        """Changes the ownership of a file."""
+        target_path = os.path.join(self.cwd, path)
+        if os.path.exists(target_path):
+            # Just a simulation: add an "owner" attribute (in a real FS, this would require permissions)
+            # Assuming ownership is saved in a simple dictionary for demonstration purposes
+            return f"Ownership of '{target_path}' changed to '{owner}'"
+        else:
+            return f"Path {target_path} not found"
 
 
 class GUI:
@@ -119,7 +142,7 @@ class GUI:
 
 
 def main():
-    # Чтение конфигурации из CSV
+    # Read configuration from CSV
     with open('config.csv', newline='') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
